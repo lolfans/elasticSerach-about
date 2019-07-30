@@ -1,0 +1,362 @@
+1，镜像 elasticsearch:5.6.14-alpine 拉下来即可使用,其他版本也可，如果不了解镜像的使用，可以在服务器直接安装elasticSearch，
+但需要安装JAVA的一些环境，稍显麻烦。
+
+2，ip+9200就可以访问
+
+具体的增删改查
+
+---------------------------------增 put方式
+
+http://localhost:9200/blog/ariticle/1
+{
+"title":"New version of Elasticsearch released!",
+"content":"Version 1.0 released today!",
+"tags":["announce","elasticsearch","release"]
+}
+
+---------------------------------删 delete方式
+
+http://localhost:9200/blog/ariticle/8
+
+    {
+     
+    - "found": true,
+    - "_index": "blog",
+    - "_type": "ariticle",
+    - "_id": "8",
+    - "_version": 2,
+    - "_shards": {
+        - "total": 2,
+        - "successful": 1,
+        - "failed": 0
+    - }
+    }
+    
+---------------------------------改 post方式
+
+http://localhost:9200/blog/ariticle/1/_update/ POST
+{“script”:”ctx._source.content = \”new version 2.0 20160714\”“}
+
+更新后结果显示：
+{
+
+    “_index”: “blog”,
+    “_type”: “ariticle”,
+    “_id”: “1”,
+    “_version”: 2,
+    “_shards”: {
+        ”total”: 2,
+        “successful”: 1,
+        “failed”: 0
+    }
+
+}
+
+
+---------------------------------查 get方式  参考文档 https://www.cnblogs.com/redirect/p/10066794.html
+
+这里只是先简单的介绍下如何检索文档，后面会详细介绍这部分内容
+
+1> 检索id为1的员工
+
+在bibana的console中输入运行
+
+GET /megacorp/employee/1
+
+返回结果包含了文档的一些元数据，以及 _source 属性，内容是 John Smith 雇员的原始 JSON 文档：
+
+{
+  "_index": "megacorp",
+  "_type": "employee",
+  "_id": "1",
+  "_version": 1,
+  "found": true,
+  "_source": {
+    "first_name": "John",
+    "last_name": "Smith",
+    "age": 25,
+    "about": "I love to go rock climbing",
+    "interests": [
+      "sports",
+      "music"
+    ]
+  }
+}
+
+2> 搜索所有雇员
+
+GET /megacorp/employee/_search
+
+返回结果包括了所有三个文档，放在数组 hits 中。一个搜索默认返回十条结果。
+
+elasticsearch 提供了两种查询模式
+
+1> Query-string：通过url参数来搜索，被称为查询字符串搜索。
+
+GET /megacorp/employee/_search?q=last_name:Smith
+
+2> Query-DSL：使用查询表达式搜索，被称为DSL查询，它支持构建更加复杂和健壮的查询，一般来说我们重点学习这种方法。
+
+GET /megacorp/employee/_search
+{
+    "query" : {
+        "match" : {
+            "last_name" : "Smith"
+        }
+    }
+}
+
+3> 更复杂的搜索
+
+GET /megacorp/employee/_search
+{
+    "query" : {
+        "bool": {
+            "must": {
+                "match" : {
+                    "last_name" : "smith" 
+                }
+            },
+            "filter": {
+                "range" : {
+                    "age" : { "gt" : 30 } 
+                }
+            }
+        }
+    }
+}
+
+注意这里搜索last_name是smith的人，同时年龄大于30。注意下语法bool里面有must，filter类型，当然以后还会学到更多类型，这里先有个意识。
+
+4> 全文搜索
+
+比如想要搜索下所有喜欢攀岩（rock climbing）的雇员
+
+GET /megacorp/employee/_search
+{
+    "query" : {
+        "match" : {
+            "about" : "rock climbing"
+        }
+    }
+}
+
+{
+  "took": 2,
+  "timed_out": false,
+  "_shards": {
+    "total": 5,
+    "successful": 5,
+    "skipped": 0,
+    "failed": 0
+  },
+  "hits": {
+    "total": 2,
+    "max_score": 0.53484553,
+    "hits": [
+      {
+        "_index": "megacorp",
+        "_type": "employee",
+        "_id": "1",
+        "_score": 0.53484553,
+        "_source": {
+          "first_name": "John",
+          "last_name": "Smith",
+          "age": 25,
+          "about": "I love to go rock climbing",
+          "interests": [
+            "sports",
+            "music"
+          ]
+        }
+      },
+      {
+        "_index": "megacorp",
+        "_type": "employee",
+        "_id": "2",
+        "_score": 0.26742277,
+        "_source": {
+          "first_name": "Jane",
+          "last_name": "Smith",
+          "age": 32,
+          "about": "I like to collect rock albums",
+          "interests": [
+            "music"
+          ]
+        }
+      }
+    ]
+  }
+}
+
+注意这里稍有不同，about字段中包含两个单词，搜索的结果并不是完全匹配，是根据单词去做了相关性匹配。
+
+Elasticsearch 默认按照相关性得分排序，即每个文档跟查询的匹配程度。
+
+Elasticsearch中的 相关性 概念非常重要，也是完全区别于传统关系型数据库的一个概念，数据库中的一条记录要么匹配要么不匹配。
+
+5> 短语搜索
+
+上面如果一个短语包含多个单词，那岂不是不能精确查询了，当然不是，可以使用短语搜索。
+
+GET /megacorp/employee/_search
+{
+    "query" : {
+        "match_phrase" : {
+            "about" : "rock climbing"
+        }
+    }
+}
+
+这样结果就是精确匹配了，仅匹配同时包含 “rock” 和 “climbing” ，并且 二者以短语 “rock climbing” 的形式紧挨着的结果
+
+6> 高亮搜索
+
+GET /megacorp/employee/_search
+{
+    "query" : {
+        "match_phrase" : {
+            "about" : "rock climbing"
+        }
+    },
+    "highlight": {
+        "fields" : {
+            "about" : {}
+        }
+    }
+}
+
+结果中多了一个highlight部分
+
+{
+   ...
+   "hits": {
+      "total":      1,
+      "max_score":  0.23013961,
+      "hits": [
+         {
+            ...
+            "_score":         0.23013961,
+            "_source": {
+               "first_name":  "John",
+               "last_name":   "Smith",
+               "age":         25,
+               "about":       "I love to go rock climbing",
+               "interests": [ "sports", "music" ]
+            },
+            "highlight": {
+               "about": [
+                  "I love to go <em>rock</em> <em>climbing</em>" 
+               ]
+            }
+         }
+      ]
+   }
+}
+
+7> 聚合
+
+聚合类似于SQL中的GROUP_BY，但功能更强大
+
+GET /megacorp/employee/_search
+{
+  "aggs": {
+    "all_interests": {
+      "terms": { "field": "interests" }
+    }
+  }
+}
+
+结果
+
+{
+   ...
+   "hits": { ... },
+   "aggregations": {
+      "all_interests": {
+         "buckets": [
+            {
+               "key":       "music",
+               "doc_count": 2
+            },
+            {
+               "key":       "forestry",
+               "doc_count": 1
+            },
+            {
+               "key":       "sports",
+               "doc_count": 1
+            }
+         ]
+      }
+   }
+}
+
+以上是对所有的雇员进行统计，我们也可以其中的一部分雇员进行组合查询统计，比如我们想知道叫smith的雇员最受欢迎的兴趣爱好。
+
+GET /megacorp/employee/_search
+{
+  "query": {
+    "match": {
+      "last_name": "smith"
+    }
+  },
+  "aggs": {
+    "all_interests": {
+      "terms": {
+        "field": "interests"
+      }
+    }
+  }
+}
+
+聚合还支持分级汇总，查询特定兴趣爱好的 员工的平均年龄
+
+GET /megacorp/employee/_search
+{
+    "aggs" : {
+        "all_interests" : {
+            "terms" : { "field" : "interests" },
+            "aggs" : {
+                "avg_age" : {
+                    "avg" : { "field" : "age" }
+                }
+            }
+        }
+    }
+}
+
+结果
+
+  ...
+  "all_interests": {
+     "buckets": [
+        {
+           "key": "music",
+           "doc_count": 2,
+           "avg_age": {
+              "value": 28.5
+           }
+        },
+        {
+           "key": "forestry",
+           "doc_count": 1,
+           "avg_age": {
+              "value": 35
+           }
+        },
+        {
+           "key": "sports",
+           "doc_count": 1,
+           "avg_age": {
+              "value": 25
+           }
+        }
+     ]
+  }
+
+
+
+
+
+    
