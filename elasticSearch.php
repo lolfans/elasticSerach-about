@@ -1,15 +1,15 @@
 <?php
 
 //elasticSearch地址
-$elasticSearchUrl = 'http://52.82.11.141:30515/_bulk';
+$elasticSearchUrl = 'http://127.0.0.1:9200/_bulk';
 echo 'elasticSearch地址';
 echo "<br/>";
 echo $elasticSearchUrl;
 
-$servername = "113.204.6.165";
-$username = "cmm_wp_root";
-$password = "aliyun@CMM@2017";
-$dbname = 'weipei_logistics3';
+$servername = "127.0.0.1";
+$username = "username";
+$password = "password";
+$dbname = 'dbname';
 
 // 创建连接
 $conn = new mysqli($servername, $username, $password, $dbname);
